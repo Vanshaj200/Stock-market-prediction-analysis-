@@ -1,0 +1,33 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Data files (keep structure, not data)
+data/prices/*.csv
+data/news/raw/*.json
+data/news/processed/*.csv
+data/models/*.pkl
+data/models/*.json
+data/fundamentals/*.db
+
+# Logs
+logs/*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
