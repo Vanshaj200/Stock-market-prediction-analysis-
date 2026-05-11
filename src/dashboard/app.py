@@ -145,7 +145,7 @@ def confidence_gauge(value: float, title: str = "Confidence") -> go.Figure:
 
 # ── Helper: price chart ───────────────────────────────────────────────────────
 
-def price_chart(safe_symbol: str, days: int = 90) -> go.Figure | None:
+def price_chart(safe_symbol: str, days: int = 365) -> go.Figure | None:
     candidates = [
         PRICE_DIR / f"{safe_symbol}_prices.csv",
         PRICE_DIR / f"{safe_symbol.replace('_', '.')}_prices.csv",
@@ -175,7 +175,7 @@ def price_chart(safe_symbol: str, days: int = 90) -> go.Figure | None:
                     )
                 )
             fig.update_layout(
-                title=f"{days}-Day Price History",
+                title=f"1-Year Price History ({days} days)",
                 xaxis_title="Date",
                 yaxis_title="Price (₹)",
                 hovermode="x unified",
