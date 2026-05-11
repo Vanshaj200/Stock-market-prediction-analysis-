@@ -1,0 +1,54 @@
+stocks:
+  - symbol: "LT.NS"
+    name: "Larsen and Turbo"
+    query: "Larsen Turbo stock India"
+  - symbol: "ADANIENT.NS"
+    name: "Adani Enterprises"
+    query: "Adani Enterprises stock India"
+  - symbol: "COALINDIA.NS"
+    name: "Coal India"
+    query: "Coal India stock NSE"
+  - symbol: "BBOX.NS"
+    name: "Black Box"
+    query: "Black Box BBOX stock India"
+  - symbol: "TATACOMM.NS"
+    name: "Tata Communications"
+    query: "Tata Communications stock India"
+  - symbol: "INFY.NS"
+    name: "Infosys"
+    query: "Infosys stock India"
+
+data_sources:
+  price_api: "yfinance"
+  news_rss_template: "https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+
+features:
+  price_window: 60
+  sentiment_window: 30
+
+model:
+  target_days_ahead: 1
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+  xgboost_params:
+    max_depth: 6
+    learning_rate: 0.05
+    n_estimators: 200
+    min_child_weight: 3
+    subsample: 0.8
+    colsample_bytree: 0.8
+    objective: "binary:logistic"
+    eval_metric: "logloss"
+    random_state: 42
+
+  random_forest_params:
+    n_estimators: 100
+    max_depth: 10
+    min_samples_split: 5
+    random_state: 42
+
+dashboard:
+  title: "Stock Market Prediction Dashboard"
+  port: 8501

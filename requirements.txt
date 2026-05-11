@@ -1,0 +1,34 @@
+# Data Collection
+yfinance>=0.2.38
+requests>=2.31.0
+beautifulsoup4>=4.12.3
+feedparser>=6.0.11
+lxml>=4.9.0
+
+# Data Processing
+pandas>=2.1.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+
+# Machine Learning
+xgboost>=2.0.3
+lightgbm>=4.3.0
+joblib>=1.3.2
+
+# NLP
+nltk>=3.8.1
+
+# Technical Analysis (implemented directly in src/preprocessing/technical_indicators.py)
+# ta package removed - sgmllib3k build fails on Python 3.11; indicators use pandas/numpy
+
+# Visualization & Dashboard
+streamlit>=1.31.0
+plotly>=5.18.0
+matplotlib>=3.8.2
+seaborn>=0.13.2
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2024.1
+pyyaml>=6.0.1
+tqdm>=4.66.1
