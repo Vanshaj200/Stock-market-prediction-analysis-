@@ -70,9 +70,21 @@ class StockPriceFetcher:
                     logger.error(f"Failed to fetch {symbol} after {self.max_retries} attempts")
                     return None
 
-    def update_latest(self, symbol, history_days=730):
-        """Update with latest data only (incremental fetch)."""
+    def update_latest(self, symbol, history_days=730, full_history=False):
+        """Update with latest data only (incremental fetch).
+
+        Args:
+            symbol: Stock ticker (e.g. "LT.NS")
+            history_days: Days of history to fetch on first bootstrap (default 730)
+            full_history: When True, fetch ALL data from 1995-01-01 and overwrite
+                          any existing CSV. Bypasses incremental update logic.
+        """
         filename = self.data_dir / f"{symbol.replace('.', '_')}_prices.csv"
+
+        # Full history mode: always do a complete refetch (don't use incremental path)
+        if full_history:
+            logger.info(f"Full history mode: refetching {symbol} from 1995-01-01")
+            return self.fetch_historical(symbol, "1995-01-01")
 
         if filename.exists():
             existing_df = pd.read_csv(filename)

@@ -145,7 +145,7 @@ def confidence_gauge(value: float, title: str = "Confidence") -> go.Figure:
 
 # ── Helper: price chart ───────────────────────────────────────────────────────
 
-def price_chart(safe_symbol: str, days: int = 90) -> go.Figure | None:
+def price_chart(safe_symbol: str, days: int = 365) -> go.Figure | None:
     candidates = [
         PRICE_DIR / f"{safe_symbol}_prices.csv",
         PRICE_DIR / f"{safe_symbol.replace('_', '.')}_prices.csv",
@@ -175,7 +175,7 @@ def price_chart(safe_symbol: str, days: int = 90) -> go.Figure | None:
                     )
                 )
             fig.update_layout(
-                title=f"{days}-Day Price History",
+                title=f"1-Year Price History ({days} days)",
                 xaxis_title="Date",
                 yaxis_title="Price (₹)",
                 hovermode="x unified",
@@ -218,7 +218,7 @@ if view_mode == "Individual Stock":
         # Gauge + prob bar side by side
         g_col, b_col = st.columns([1, 1])
         with g_col:
-            st.plotly_chart(confidence_gauge(conf), use_container_width=True)
+            st.plotly_chart(confidence_gauge(conf), width='stretch')
         with b_col:
             st.subheader("Direction Probability")
             prob_fig = go.Figure(
@@ -236,13 +236,13 @@ if view_mode == "Individual Stock":
                 margin=dict(t=20, b=10),
                 showlegend=False,
             )
-            st.plotly_chart(prob_fig, use_container_width=True)
+            st.plotly_chart(prob_fig, width='stretch')
 
         # Price history
         st.subheader("Historical Prices")
         fig = price_chart(sym)
         if fig:
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.info("Price data not found. Run step 1 of the pipeline.")
 
@@ -280,7 +280,7 @@ if view_mode == "Individual Stock":
                     color_continuous_scale="blues",
                 )
                 fig_imp.update_layout(height=400, margin=dict(t=20))
-                st.plotly_chart(fig_imp, use_container_width=True)
+                st.plotly_chart(fig_imp, width='stretch')
 
 # ─────────────────────── PORTFOLIO VIEW ───────────────────────────────────────
 else:
@@ -323,7 +323,7 @@ else:
             "P(DOWN)": f"{pred['probability_down']:.1%}",
             "Confidence": f"{pred['confidence']:.1%}",
         })
-    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width='stretch')
 
     # Pie chart
     up_count = sum(1 for p in preds.values() if p["prediction"] == "UP")
@@ -349,7 +349,7 @@ else:
                 )
             )
             pie_fig.update_layout(height=350)
-            st.plotly_chart(pie_fig, use_container_width=True)
+            st.plotly_chart(pie_fig, width='stretch')
 
         with bar_col:
             st.subheader("Confidence by Stock")
@@ -362,7 +362,7 @@ else:
                 color_continuous_scale="blues",
             )
             bar_fig.update_layout(height=350, showlegend=False)
-            st.plotly_chart(bar_fig, use_container_width=True)
+            st.plotly_chart(bar_fig, width='stretch')
 
     # Model metrics summary table
     metric_rows = []
@@ -379,7 +379,7 @@ else:
             })
     if metric_rows:
         st.subheader("Model Performance Summary")
-        st.dataframe(pd.DataFrame(metric_rows), hide_index=True, use_container_width=True)
+        st.dataframe(pd.DataFrame(metric_rows), hide_index=True, width='stretch')
 
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown("---")

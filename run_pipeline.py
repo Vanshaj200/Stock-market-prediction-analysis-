@@ -3,9 +3,11 @@ Master pipeline: fetch data → preprocess → sentiment → train models.
 Run this once to bootstrap, then daily for incremental updates.
 
 Usage:
-    python run_pipeline.py               # full pipeline, all stocks
-    python run_pipeline.py --step 1      # only fetch prices
-    python run_pipeline.py --stocks LT.NS INFY.NS  # specific stocks
+    python run_pipeline.py                             # full pipeline, all stocks
+    python run_pipeline.py --step 1                    # only fetch prices (730 days)
+    python run_pipeline.py --step 1 --full-history     # fetch ALL history from 1995
+    python run_pipeline.py --stocks LT.NS INFY.NS      # specific stocks
+    python run_pipeline.py --stocks LT.NS --full-history  # full history for one stock
 """
 
 import sys
@@ -19,13 +21,19 @@ from datetime import datetime
 Path("logs").mkdir(exist_ok=True)
 log_file = f"logs/pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
+_file_handler = logging.FileHandler(log_file, encoding="utf-8")
+_stream_handler = logging.StreamHandler(sys.stdout)
+# Force UTF-8 on Windows consoles (cp1252 can't encode many Unicode chars)
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=[_file_handler, _stream_handler],
 )
 logger = logging.getLogger("pipeline")
 
@@ -51,9 +59,13 @@ def load_config(path: str = "config/config.yaml") -> dict:
 
 # ── Pipeline steps ────────────────────────────────────────────────────────────
 
-def step_1_fetch_prices(config: dict, stocks: list | None = None):
+def step_1_fetch_prices(config: dict, stocks: list | None = None, full_history: bool = False):
     logger.info("=" * 60)
     logger.info("STEP 1: Fetching Stock Prices")
+    if full_history:
+        logger.info("  Mode: FULL HISTORY (from 1995-01-01) — first run may take ~30s per stock")
+    else:
+        logger.info("  Mode: incremental / last 730 days")
     logger.info("=" * 60)
 
     fetcher = StockPriceFetcher()
@@ -61,13 +73,13 @@ def step_1_fetch_prices(config: dict, stocks: list | None = None):
 
     for symbol in targets:
         logger.info(f"  Updating {symbol}...")
-        df = fetcher.update_latest(symbol)
+        df = fetcher.update_latest(symbol, full_history=full_history)
         if df is not None:
-            logger.info(f"  ✓ {symbol}: {len(df)} total rows")
+            logger.info(f"  [OK] {symbol}: {len(df)} total rows")
         else:
-            logger.warning(f"  ✗ {symbol}: no data returned")
+            logger.warning(f"  [FAIL] {symbol}: no data returned")
 
-    logger.info("✓ Step 1 complete\n")
+    logger.info("[OK] Step 1 complete\n")
 
 
 def step_2_fetch_news(config: dict, stocks: list | None = None):
@@ -86,7 +98,7 @@ def step_2_fetch_news(config: dict, stocks: list | None = None):
         articles = fetcher.fetch_google_news_rss(query)
         fetcher.save_articles(articles, symbol)
 
-    logger.info("✓ Step 2 complete\n")
+    logger.info("[OK] Step 2 complete\n")
 
 
 def step_3_preprocess_prices(config: dict, stocks: list | None = None):
@@ -110,11 +122,11 @@ def step_3_preprocess_prices(config: dict, stocks: list | None = None):
             df_proc = TechnicalIndicators.add_all_indicators(df)
             out_file = price_dir / f"{safe}_processed.csv"
             df_proc.to_csv(out_file, index=False)
-            logger.info(f"  ✓ {symbol}: {len(df_proc.columns)} features, {len(df_proc)} rows")
+            logger.info(f"  [OK] {symbol}: {len(df_proc.columns)} features, {len(df_proc)} rows")
         except Exception as e:
-            logger.error(f"  ✗ {symbol}: {e}")
+            logger.error(f"  [FAIL] {symbol}: {e}")
 
-    logger.info("✓ Step 3 complete\n")
+    logger.info("[OK] Step 3 complete\n")
 
 
 def step_4_analyze_sentiment(config: dict, stocks: list | None = None):
@@ -140,7 +152,7 @@ def step_4_analyze_sentiment(config: dict, stocks: list | None = None):
         all_articles = []
         for jf in json_files:
             try:
-                with open(jf) as f:
+                with open(jf, encoding="utf-8") as f:
                     all_articles.extend(json.load(f))
             except Exception:
                 pass
@@ -168,11 +180,11 @@ def step_4_analyze_sentiment(config: dict, stocks: list | None = None):
             sent_df = pd.DataFrame(results)
             out_file = out_dir / f"{safe}_sentiment.csv"
             sent_df.to_csv(out_file, index=False)
-            logger.info(f"  ✓ {symbol}: {len(results)} articles analyzed")
+            logger.info(f"  [OK] {symbol}: {len(results)} articles analyzed")
         else:
             logger.warning(f"  {symbol}: no text content to analyze")
 
-    logger.info("✓ Step 4 complete\n")
+    logger.info("[OK] Step 4 complete\n")
 
 
 def step_5_train_models(config: dict, stocks: list | None = None):
@@ -197,15 +209,15 @@ def step_5_train_models(config: dict, stocks: list | None = None):
             trainer.save(symbol)
 
             logger.info(
-                f"  ✓ {symbol}: accuracy={metrics['accuracy']:.3f} "
+                f"  [OK] {symbol}: accuracy={metrics['accuracy']:.3f} "
                 f"f1={metrics['f1_score']:.3f}"
             )
         except FileNotFoundError as e:
-            logger.warning(f"  ✗ {symbol}: {e}")
+            logger.warning(f"  [FAIL] {symbol}: {e}")
         except Exception as e:
-            logger.error(f"  ✗ {symbol}: {e}", exc_info=True)
+            logger.error(f"  [FAIL] {symbol}: {e}", exc_info=True)
 
-    logger.info("✓ Step 5 complete\n")
+    logger.info("[OK] Step 5 complete\n")
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
@@ -223,31 +235,38 @@ def main():
         nargs="+",
         help="Space-separated list of stock symbols to process (e.g. LT.NS INFY.NS)",
     )
+    parser.add_argument(
+        "--full-history",
+        action="store_true",
+        help="Fetch ALL historical data from 1995 (step 1 only). Default: last 730 days.",
+    )
     args = parser.parse_args()
 
-    logger.info("🚀 Stock Prediction Pipeline Starting")
+    logger.info("*** Stock Prediction Pipeline Starting ***")
     logger.info(f"   Timestamp : {datetime.now()}")
     logger.info(f"   Log file  : {log_file}\n")
 
     config = load_config()
     stocks = args.stocks
-
-    steps = {
-        1: step_1_fetch_prices,
-        2: step_2_fetch_news,
-        3: step_3_preprocess_prices,
-        4: step_4_analyze_sentiment,
-        5: step_5_train_models,
-    }
+    full_history = args.full_history
 
     run_steps = [args.step] if args.step else [1, 2, 3, 4, 5]
 
     try:
         for step_num in run_steps:
-            steps[step_num](config, stocks)
+            if step_num == 1:
+                step_1_fetch_prices(config, stocks, full_history=full_history)
+            elif step_num == 2:
+                step_2_fetch_news(config, stocks)
+            elif step_num == 3:
+                step_3_preprocess_prices(config, stocks)
+            elif step_num == 4:
+                step_4_analyze_sentiment(config, stocks)
+            elif step_num == 5:
+                step_5_train_models(config, stocks)
 
         logger.info("=" * 60)
-        logger.info("✅ PIPELINE COMPLETE")
+        logger.info("PIPELINE COMPLETE")
         logger.info("=" * 60)
         logger.info("Next steps:")
         logger.info("  streamlit run src/dashboard/app.py")
@@ -258,7 +277,7 @@ def main():
         sys.exit(0)
     except Exception as e:
         logger.error("=" * 60)
-        logger.error("❌ PIPELINE FAILED")
+        logger.error("PIPELINE FAILED")
         logger.error("=" * 60)
         logger.exception(e)
         sys.exit(1)

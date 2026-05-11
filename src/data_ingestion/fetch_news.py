@@ -134,7 +134,7 @@ class NewsFetcher:
         existing_articles = []
         if filename.exists():
             try:
-                with open(filename, "r") as f:
+                with open(filename, "r", encoding="utf-8") as f:
                     existing_articles = json.load(f)
             except Exception:
                 existing_articles = []
@@ -143,7 +143,7 @@ class NewsFetcher:
         for a in articles:
             all_articles[a["id"]] = a
 
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             json.dump(list(all_articles.values()), f, indent=2, ensure_ascii=False)
 
         logger.info(f"Saved {len(all_articles)} unique articles for {stock_symbol}")
@@ -153,7 +153,7 @@ class NewsFetcher:
         articles = []
         for json_file in sorted(self.data_dir.glob(f"{stock_symbol}_*.json")):
             try:
-                with open(json_file, "r") as f:
+                with open(json_file, "r", encoding="utf-8") as f:
                     articles.extend(json.load(f))
             except Exception as e:
                 logger.warning(f"Could not read {json_file}: {e}")

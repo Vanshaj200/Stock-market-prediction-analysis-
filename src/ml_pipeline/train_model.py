@@ -103,14 +103,15 @@ class ModelTrainer:
         if params:
             default_params.update(params)
 
-        self.model = xgb.XGBClassifier(**default_params)
+        # XGBoost 3.x requires early_stopping_rounds in the constructor, not fit()
+        self.model = xgb.XGBClassifier(early_stopping_rounds=20, **default_params)
         self.model.fit(
             X_train_s, y_train,
             eval_set=[(X_val_s, y_val)],
-            early_stopping_rounds=20,
             verbose=False,
         )
-        logger.info(f"Training done — best iteration: {self.model.best_iteration}")
+        best_iter = getattr(self.model, "best_iteration", None)
+        logger.info(f"Training done — best iteration: {best_iter}")
 
         val_pred = self.model.predict(X_val_s)
         val_acc = accuracy_score(y_val, val_pred)
@@ -163,15 +164,16 @@ class ModelTrainer:
         joblib.dump(self.model, self.model_dir / f"xgboost_{safe}.pkl")
         joblib.dump(self.scaler, self.model_dir / f"scaler_{safe}.pkl")
 
+        best_iter = getattr(self.model, "best_iteration", None)
         metadata = {
             "stock_symbol": stock_symbol,
             "metrics": self.metrics,
             "n_features": len(self.feature_names) if self.feature_names else 0,
             "feature_names": self.feature_names or [],
-            "best_iteration": int(self.model.best_iteration),
+            "best_iteration": int(best_iter) if best_iter is not None else None,
             "timestamp": pd.Timestamp.now().isoformat(),
         }
-        with open(self.model_dir / f"{safe}_metadata.json", "w") as f:
+        with open(self.model_dir / f"{safe}_metadata.json", "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2)
 
         logger.info(f"Model saved for {stock_symbol}")
