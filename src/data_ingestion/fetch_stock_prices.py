@@ -76,20 +76,21 @@ class StockPriceFetcher:
         Args:
             symbol: Stock ticker (e.g. "LT.NS")
             history_days: Days of history to fetch on first bootstrap (default 730)
-            full_history: When True, fetch all available data from 1995-01-01
+            full_history: When True, fetch ALL data from 1995-01-01 and overwrite
+                          any existing CSV. Bypasses incremental update logic.
         """
         filename = self.data_dir / f"{symbol.replace('.', '_')}_prices.csv"
 
-        bootstrap_start = (
-            "1995-01-01"
-            if full_history
-            else (datetime.now() - timedelta(days=history_days)).strftime("%Y-%m-%d")
-        )
+        # Full history mode: always do a complete refetch (don't use incremental path)
+        if full_history:
+            logger.info(f"Full history mode: refetching {symbol} from 1995-01-01")
+            return self.fetch_historical(symbol, "1995-01-01")
 
         if filename.exists():
             existing_df = pd.read_csv(filename)
             if existing_df.empty:
-                return self.fetch_historical(symbol, bootstrap_start)
+                start_date = (datetime.now() - timedelta(days=history_days)).strftime("%Y-%m-%d")
+                return self.fetch_historical(symbol, start_date)
 
             last_date = pd.to_datetime(existing_df["date"].iloc[-1])
             start_date = (last_date + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -104,7 +105,8 @@ class StockPriceFetcher:
                 return combined_df
             return existing_df
         else:
-            return self.fetch_historical(symbol, bootstrap_start)
+            start_date = (datetime.now() - timedelta(days=history_days)).strftime("%Y-%m-%d")
+            return self.fetch_historical(symbol, start_date)
 
 
 if __name__ == "__main__":
