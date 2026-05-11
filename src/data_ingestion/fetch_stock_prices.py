@@ -70,15 +70,26 @@ class StockPriceFetcher:
                     logger.error(f"Failed to fetch {symbol} after {self.max_retries} attempts")
                     return None
 
-    def update_latest(self, symbol, history_days=730):
-        """Update with latest data only (incremental fetch)."""
+    def update_latest(self, symbol, history_days=730, full_history=False):
+        """Update with latest data only (incremental fetch).
+
+        Args:
+            symbol: Stock ticker (e.g. "LT.NS")
+            history_days: Days of history to fetch on first bootstrap (default 730)
+            full_history: When True, fetch all available data from 1995-01-01
+        """
         filename = self.data_dir / f"{symbol.replace('.', '_')}_prices.csv"
+
+        bootstrap_start = (
+            "1995-01-01"
+            if full_history
+            else (datetime.now() - timedelta(days=history_days)).strftime("%Y-%m-%d")
+        )
 
         if filename.exists():
             existing_df = pd.read_csv(filename)
             if existing_df.empty:
-                start_date = (datetime.now() - timedelta(days=history_days)).strftime("%Y-%m-%d")
-                return self.fetch_historical(symbol, start_date)
+                return self.fetch_historical(symbol, bootstrap_start)
 
             last_date = pd.to_datetime(existing_df["date"].iloc[-1])
             start_date = (last_date + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -93,8 +104,7 @@ class StockPriceFetcher:
                 return combined_df
             return existing_df
         else:
-            start_date = (datetime.now() - timedelta(days=history_days)).strftime("%Y-%m-%d")
-            return self.fetch_historical(symbol, start_date)
+            return self.fetch_historical(symbol, bootstrap_start)
 
 
 if __name__ == "__main__":

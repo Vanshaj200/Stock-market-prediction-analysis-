@@ -3,9 +3,11 @@ Master pipeline: fetch data → preprocess → sentiment → train models.
 Run this once to bootstrap, then daily for incremental updates.
 
 Usage:
-    python run_pipeline.py               # full pipeline, all stocks
-    python run_pipeline.py --step 1      # only fetch prices
-    python run_pipeline.py --stocks LT.NS INFY.NS  # specific stocks
+    python run_pipeline.py                             # full pipeline, all stocks
+    python run_pipeline.py --step 1                    # only fetch prices (730 days)
+    python run_pipeline.py --step 1 --full-history     # fetch ALL history from 1995
+    python run_pipeline.py --stocks LT.NS INFY.NS      # specific stocks
+    python run_pipeline.py --stocks LT.NS --full-history  # full history for one stock
 """
 
 import sys
@@ -57,9 +59,13 @@ def load_config(path: str = "config/config.yaml") -> dict:
 
 # ── Pipeline steps ────────────────────────────────────────────────────────────
 
-def step_1_fetch_prices(config: dict, stocks: list | None = None):
+def step_1_fetch_prices(config: dict, stocks: list | None = None, full_history: bool = False):
     logger.info("=" * 60)
     logger.info("STEP 1: Fetching Stock Prices")
+    if full_history:
+        logger.info("  Mode: FULL HISTORY (from 1995-01-01) — first run may take ~30s per stock")
+    else:
+        logger.info("  Mode: incremental / last 730 days")
     logger.info("=" * 60)
 
     fetcher = StockPriceFetcher()
@@ -67,7 +73,7 @@ def step_1_fetch_prices(config: dict, stocks: list | None = None):
 
     for symbol in targets:
         logger.info(f"  Updating {symbol}...")
-        df = fetcher.update_latest(symbol)
+        df = fetcher.update_latest(symbol, full_history=full_history)
         if df is not None:
             logger.info(f"  [OK] {symbol}: {len(df)} total rows")
         else:
@@ -229,6 +235,11 @@ def main():
         nargs="+",
         help="Space-separated list of stock symbols to process (e.g. LT.NS INFY.NS)",
     )
+    parser.add_argument(
+        "--full-history",
+        action="store_true",
+        help="Fetch ALL historical data from 1995 (step 1 only). Default: last 730 days.",
+    )
     args = parser.parse_args()
 
     logger.info("*** Stock Prediction Pipeline Starting ***")
@@ -237,20 +248,22 @@ def main():
 
     config = load_config()
     stocks = args.stocks
-
-    steps = {
-        1: step_1_fetch_prices,
-        2: step_2_fetch_news,
-        3: step_3_preprocess_prices,
-        4: step_4_analyze_sentiment,
-        5: step_5_train_models,
-    }
+    full_history = args.full_history
 
     run_steps = [args.step] if args.step else [1, 2, 3, 4, 5]
 
     try:
         for step_num in run_steps:
-            steps[step_num](config, stocks)
+            if step_num == 1:
+                step_1_fetch_prices(config, stocks, full_history=full_history)
+            elif step_num == 2:
+                step_2_fetch_news(config, stocks)
+            elif step_num == 3:
+                step_3_preprocess_prices(config, stocks)
+            elif step_num == 4:
+                step_4_analyze_sentiment(config, stocks)
+            elif step_num == 5:
+                step_5_train_models(config, stocks)
 
         logger.info("=" * 60)
         logger.info("PIPELINE COMPLETE")
