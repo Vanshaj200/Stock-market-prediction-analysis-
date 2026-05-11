@@ -65,7 +65,10 @@ class FeatureEngineer:
             df["sentiment_score"] = 0.0
         else:
             sent_df = pd.read_csv(sentiment_file)
-            sent_df["date"] = pd.to_datetime(sent_df["date"], errors="coerce").dt.normalize()
+            # format='mixed' suppresses warning for varied date formats from RSS feeds
+            sent_df["date"] = pd.to_datetime(
+                sent_df["date"], errors="coerce", format="mixed", utc=True
+            ).dt.tz_localize(None).dt.normalize()
             # Aggregate to daily mean score
             daily = (
                 sent_df.groupby("date")["sentiment_score"]
